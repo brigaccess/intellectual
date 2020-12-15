@@ -208,9 +208,10 @@ def endWithAnd(l):
 def recommend(u_i):
     wm = find_weekend_home_movie(u_i)
     trivia_list = trivia_lookup(list(wm.keys())[0])
-    wm["trivia"] = "Can you believe that " + endWithAnd(trivia_list) + \
-        " didn't win the Oscars after their marvellous perfomance in the movie? " + \
-        "That's ridiculous!"
+    if trivia_list:
+        wm["trivia"] = "Can you believe that " + endWithAnd(trivia_list) + \
+            " didn't win the Oscars after their marvellous perfomance in the movie? " + \
+            "That's ridiculous!"
     result = {
         "user": u_i,
         "1": assume_ratings_for(u_i),
@@ -222,7 +223,9 @@ def trivia_lookup(movie_alias):
     # First, load movie names and fetch original movie name
     names = pd.read_csv('movie_names.csv', header=None)
     movie = names[names[0] == movie_alias][1].iloc[0].strip()
-    
+    if movie == "Not found":
+        return []
+
     # Initialize SPARQLWrapper and try to find the movie by the name
     # Also, bypass their awful security measures
     sparql = SPARQLWrapper(
@@ -239,7 +242,7 @@ def trivia_lookup(movie_alias):
      """ % movie.replace('"', '\\"'))
     # Extract entity id (you have to deal with this kind of stuff when parsing external sources)
     eid = sparql.query().convert()["results"]["bindings"][0]["movie"]["value"].split("/")[::-1][0]
-    
+
     sparql.setQuery("""
         SELECT DISTINCT ?castMemberLabel ?castMember
         WHERE
@@ -248,21 +251,23 @@ def trivia_lookup(movie_alias):
             BIND(wd:%s as ?movie)
             # Get movie actors
             ?movie wdt:P161 ?castMember .
-            # Filter by gender == female -- sorry, Ellen/Elliot Page. 
+            # Filter by gender == female -- sorry, Ellen/Elliot Page.
             # Or shouldn't I be sorry? Duh.
             ?castMember wdt:P21 wd:Q6581072 .
 
             # Filter out all Academic Award recepients
             FILTER NOT EXISTS {
                 # Get all cast members who recieved an award
-                ?castMember p:P166 ?awardStat . 
+                ?castMember p:P166 ?awardStat .
                 # Get received award
                 ?awardStat ps:P166 ?awardReceived . 
-                # Check if Academic Awardreturn {
-        "user": u_i,
-        "1": assume_ratings_for(u_i),
-        "2": find_weekend_home_movie(u_i)
-    }
+                # Check if Academic Award
+                ?awardReceived wdt:P31/wdt:P279* wd:Q19020
+            }
+            # Label
+            SERVICE wikibase:label {bd:serviceParam wikibase:language "en" }
+        }
+    """ % eid)
     result = sparql.query().convert()
     names = []
     for item in result["results"]["bindings"]:
