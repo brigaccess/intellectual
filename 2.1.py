@@ -6,6 +6,8 @@ import json
 import numpy as np
 import pandas as pd
 
+from SPARQLWrapper import SPARQLWrapper, JSON
+
 def sim(u, v):
     """
     Takes two vectors of the same size,
@@ -196,12 +198,76 @@ def find_weekend_home_movie(u_i):
         np.round(result[0][1], decimals=3)
     }
 
+def endWithAnd(l):
+    if not l:
+        return ""
+    elif len(l) == 1:
+        return l[0]
+    return ", ".join(l[:-1]) + " and " + l[-1:][0]
+
 def recommend(u_i):
-    return {
+    wm = find_weekend_home_movie(u_i)
+    trivia_list = trivia_lookup(list(wm.keys())[0])
+    wm["trivia"] = "Can you believe that " + endWithAnd(trivia_list) + \
+        " didn't win the Oscars after their marvellous perfomance in the movie? " + \
+        "That's ridiculous!"
+    result = {
+        "user": u_i,
+        "1": assume_ratings_for(u_i),
+        "2": wm
+    }
+    return result
+
+def trivia_lookup(movie_alias):
+    # First, load movie names and fetch original movie name
+    names = pd.read_csv('movie_names.csv', header=None)
+    movie = names[names[0] == movie_alias][1].iloc[0].strip()
+    
+    # Initialize SPARQLWrapper and try to find the movie by the name
+    # Also, bypass their awful security measures
+    sparql = SPARQLWrapper(
+        "https://query.wikidata.org/sparql",
+        agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0"
+    )
+    sparql.setReturnFormat(JSON)
+    sparql.setQuery("""
+         SELECT ?movie WHERE {
+         ?movie wdt:P31 wd:Q11424 ;
+                wdt:P1476 ?title
+         FILTER regex(?title, str("%s"))
+       }
+     """ % movie.replace('"', '\\"'))
+    # Extract entity id (you have to deal with this kind of stuff when parsing external sources)
+    eid = sparql.query().convert()["results"]["bindings"][0]["movie"]["value"].split("/")[::-1][0]
+    
+    sparql.setQuery("""
+        SELECT DISTINCT ?castMemberLabel ?castMember
+        WHERE
+        {
+            # Get movie
+            BIND(wd:%s as ?movie)
+            # Get movie actors
+            ?movie wdt:P161 ?castMember .
+            # Filter by gender == female -- sorry, Ellen/Elliot Page. 
+            # Or shouldn't I be sorry? Duh.
+            ?castMember wdt:P21 wd:Q6581072 .
+
+            # Filter out all Academic Award recepients
+            FILTER NOT EXISTS {
+                # Get all cast members who recieved an award
+                ?castMember p:P166 ?awardStat . 
+                # Get received award
+                ?awardStat ps:P166 ?awardReceived . 
+                # Check if Academic Awardreturn {
         "user": u_i,
         "1": assume_ratings_for(u_i),
         "2": find_weekend_home_movie(u_i)
     }
+    result = sparql.query().convert()
+    names = []
+    for item in result["results"]["bindings"]:
+        names.append(item["castMemberLabel"]["value"])
+    return(names)
 
 if __name__ == "__main__":
     with open('result.json', 'w') as f:
