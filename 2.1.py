@@ -65,6 +65,7 @@ def assume_rating(data, u_i, i, k=4, rated_filter=None):
     
     return avg_u + (sim_product_sum / sim_sum)
 
+
 def user_knn(data, u_i, i, k=4, metric=sim, rated_filter=None):
     """
     Finds first k similar users that rated the movie.
@@ -77,11 +78,6 @@ def user_knn(data, u_i, i, k=4, metric=sim, rated_filter=None):
     
     # Get rid of user that we're calculating data for
     rated = rated[rated[:, 0] != u_i]
-    
-    # Filter data to find other users that have rated the movie
-    # (if i != None, otherwise just calculate similarity array)
-    if i is not None:
-        rated = rated[rated[:, i + 1] != -1]
         
     # Apply external filter if provided
     if rated_filter is not None:
