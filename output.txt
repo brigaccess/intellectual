@@ -1,0 +1,6 @@
+User 2
+	51	('Legends of the Fall (1994)', '01-Jan-1994')	4.539
+	101	('Heavy Metal (1981)', '08-Mar-1981')	4.463
+	314	('3 Ninjas: High Noon At Mega Mountain (1998)', '01-Jan-1997')	4.269
+	259	('George of the Jungle (1997)', '01-Jan-1997')	4.094
+	270	('Gattaca (1997)', '01-Jan-1997')	4.045
