@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 import itertools
-from operator import add, attrgetter
+from operator import add
 import math
 import random
 import secrets # True randomness here!
@@ -119,7 +119,7 @@ class Specimen():
     Byte-encoded life form. Makes things a little bit simpler
     """
     def __init__(self, generation, gene_count, genome=None):
-        if genome is None or type(genome) != list:
+        if genome is None or not isinstance(genome, list):
             self.genome = [0 for i in range(gene_count)]
         else:
             self.genome = genome
@@ -134,7 +134,28 @@ class Specimen():
         
     def __len__(self):
         return len(self.genome)
-        
+
+    @staticmethod
+    def _compare_check(other):
+        if isinstance(other, Specimen):
+            return other.fitness
+        elif isinstance(other, numbers.Number):
+            return other
+        else:
+            raise TypeError("unsupported operand")
+
+    def __lt__(self, other):
+        return self.fitness < Specimen._compare_check(other)
+
+    def __le__(self, other):
+        return self.fitness <= Specimen._compare_check(other)
+
+    def __gt__(self, other):
+        return self.fitness > Specimen._compare_check(other)
+
+    def __ge__(self, other):
+        return self.fitness >= Specimen._compare_check(other)
+
     def _cross_over(self, other):
         """
         #3# Crossing-over: specimen with random genes from both parents
@@ -152,9 +173,9 @@ class Specimen():
     
     def __unicode__(self):
         return "Specimen (gen{}, fit{}): {}".format(self.generation, self.fitness, str(self.genome))
-    
+
     def __repr__(self):
-        return self.__unicode__()
+        return "<" + self.__unicode__() + ">"
     
     def __str__(self):
         return self.__unicode__()
@@ -212,7 +233,7 @@ class Pool():
             spec.fitness = self.fitness_func(spec)
             
         # Sort specimen so that the fittest will be first
-        self.specimen = sorted(self.specimen, key=attrgetter('fitness'))[::-1]
+        self.specimen = sorted(self.specimen)[::-1]
         
         # Best specimen
         self._best_specimen = self.specimen[0]
@@ -227,7 +248,7 @@ class Pool():
             print("Gen", self.generation, " N=", len(self.specimen), "FIT=", self.specimen[0].fitness)
             
             # Save corpse if this was the best result
-            if self._best_specimen.fitness < self.specimen[0].fitness:
+            if self._best_specimen < self.specimen[0]:
                 self._best_specimen = self.specimen[0]
             
             # Get maximum fitness (first element is always the fittest)
@@ -369,9 +390,6 @@ class Pool():
         """
         Evolve to the new generation
         """
-        # faster than lambda x: x.fitness
-        fkey = attrgetter('fitness')
-
         # Specimen amount to be replaced in current generation
         last_n = math.floor(len(self.specimen) * 0.2)
         
@@ -393,7 +411,7 @@ class Pool():
         # Sort newborns by fitness (fittest first)
         for spec in newborns:
             spec.fitness = self.fitness_func(spec)
-        newborns = sorted(newborns, key=fkey)[::-1]
+        newborns = sorted(newborns)[::-1]
         
         # #5# New population
         #
@@ -409,7 +427,7 @@ class Pool():
             spec.fitness = self.fitness_func(spec)
             
         # Sort specimen so that the fittest will be first
-        self.specimen = sorted(self.specimen, key=fkey)[::-1]
+        self.specimen = sorted(self.specimen)[::-1]
         
         # Boom! New generation is here
         self.generation += 1
